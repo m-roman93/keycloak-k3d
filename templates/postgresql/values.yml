@@ -1,0 +1,20 @@
+auth:
+  postgresPassword: ${postgres_root_password}
+readReplicas:
+  persistence:
+    existingClaim: pvc-postgresql
+primary:  
+  persistence:
+    existingClaim: pvc-postgresql
+  initdb:    
+    scripts:
+      keycloak.sh: |
+         #!/bin/sh
+         PGHOST="localhost"
+         PGUSERNAME="postgres"
+         PGPASSWORD="rootpasswd123"
+         KEYCLOAK_PASSWORD="kcpassrd123"
+         PGPASSWORD=$PGPASSWORD psql --host="$PGHOST" --username="$PGUSERNAME" -d "postgres" -c "CREATE DATABASE keycloak_db;"
+         PGPASSWORD=$PGPASSWORD psql --host="$PGHOST" --username="$PGUSERNAME" -d "postgres" -c "CREATE USER usr_keycloak WITH PASSWORD '$KEYCLOAK_PASSWORD';"
+         PGPASSWORD=$PGPASSWORD psql --host="$PGHOST" --username="$PGUSERNAME" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE keycloak_db TO usr_keycloak;"
+         PGPASSWORD=$PGPASSWORD psql --host="$PGHOST" --username="$PGUSERNAME" -d "postgres" -c "ALTER DATABASE keycloak_db OWNER TO usr_keycloak;"

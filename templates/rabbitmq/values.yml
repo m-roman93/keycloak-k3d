@@ -1,0 +1,3 @@
+initScripts:
+  create_vhosts.sh: |
+     #!/bin/sh

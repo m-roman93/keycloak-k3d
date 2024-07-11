@@ -1,0 +1,152 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -o allexport
+source .env
+set +o allexport
+
+read_s_args()
+{
+    declare -a sargs=()
+    while (($#)) && [[ $1 != -* ]]; do sargs+=("$1"); shift; done
+    return $sargs
+}
+
+init_certs(){
+    rm -rf ./certs/*
+    mkcert -install
+    mkcert -cert-file certs/cert.pem -key-file certs/key.pem $TF_VAR_base_dns "*.$TF_VAR_base_dns" $TF_VAR_base_dns   
+    cp ~/.local/share/mkcert/* ./certs
+}
+
+build(){
+    docker compose -f src/docker-compose.yaml build
+}
+
+up(){
+     docker compose -f src/docker-compose.yaml up
+}
+
+cluster(){
+    while (($#)); do
+        case "$1" in
+            create) 
+                local sargs=$(read_s_args "${@:2}")
+                create_cluster $sargs
+                ;;
+            delete) 
+                delete_cluster
+                ;;
+        esac
+        shift
+    done
+}
+
+create_volumes(){
+    if [ -d "$HOME/k3d" ]; then
+        echo "Skipping volumes..."
+        return
+    fi
+    echo "Starting volumes creation"
+    rm -rf .terraform*
+    mkdir -p $HOME/k3d/volume/postgresql
+    mkdir -p $HOME/k3d/volume/rabbitmq
+    chmod 777 -R $HOME/k3d
+}
+
+delete_volumes(){
+    sudo rm -rf $HOME/k3d
+}
+
+create_cluster(){
+    
+    create_volumes
+
+    echo "Starting cluster creation"
+    k3d cluster create local --api-port 6550 --k3s-arg "--disable=traefik@server:*" \
+    -p "80:80@loadbalancer" \
+    -p "443:443@loadbalancer" \
+    -p "5432:5432@loadbalancer" \
+    -p "5672:5672@loadbalancer" \
+    -v $HOME/k3d/volume/postgresql:/data/postgresql@all \
+    -v $HOME/k3d/volume/rabbitmq:/data/rabbitmq@all \
+    -v /usr/share/zoneinfo:/usr/share/zoneinfo@all \
+    --agents 1 --servers 1 --wait
+
+    deploy
+}
+
+delete_cluster(){
+    k3d cluster delete local
+    rm -rf .terraform*
+    rm -rf terraform*
+}
+
+
+deploy(){
+    build
+
+    k3d image import -c local frontend:latest backend:latest
+    echo "Starting terraform"
+    terraform init
+    terraform validate
+    apply
+}
+
+plan(){
+    if [ "$1" != "" ]; then
+        terraform plan -target $1
+    else
+        terraform plan
+    fi
+}
+
+apply(){
+    if [ "$1" != "" ]; then
+        terraform apply -auto-approve -target $1
+    else
+        terraform apply -auto-approve 
+    fi
+}
+
+destroy(){
+    if [ "$1" != "" ]; then
+        terraform destroy  -auto-approve -target $1
+    else
+        terraform destroy -auto-approve 
+    fi    
+}
+
+check_tools(){
+  if ! command -v jq &> /dev/null
+  then
+      echo "jq is not installed"
+      exit
+  fi
+  if ! command -v docker &> /dev/null
+  then
+      echo "docker is not installed"
+      exit
+  fi
+  if ! command -v docker version &> /dev/null
+  then
+      echo "dockerd is not running"
+      exit
+  fi
+
+  if ! command -v terraform version &> /dev/null
+  then
+      echo "terraform is not installed"
+      exit
+  fi
+
+  if ! command -v k3d version &> /dev/null
+  then
+      echo "k3d is not installed"
+      exit
+  fi
+}
+
+check_tools
+
+"$@"

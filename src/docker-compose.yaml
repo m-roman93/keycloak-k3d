@@ -1,0 +1,21 @@
+services:
+  
+  frontend:
+    image: frontend:latest
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - 8081:80
+    depends_on:
+      - backend
+    
+  backend:
+    image: backend:latest
+    build: ./backend
+    container_name: backend
+    ports:
+      - 9000:9000
+    environment: 
+      - APP_NAME=movies-app
+      - KEYCLOAK_URL=https://auth.local.k3d
+      - KEYCLOAK_REALM=test

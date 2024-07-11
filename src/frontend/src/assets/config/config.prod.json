@@ -1,0 +1,6 @@
+{
+    "KEYCLOAK_URL": "https://auth.local.k3d",
+    "KEYCLOAK_REALM": "test",
+    "KEYCLOAK_CLIENT_ID": "frontend",
+    "FRONTEND_URL": "https://frontend.local.k3d/"
+}

@@ -1,0 +1,36 @@
+postgresql:
+  enabled: false
+auth:
+  adminUser: ${keycloak_admin_user}
+  adminPassword: ${keycloak_admin_password}
+  proxyAddressForwarding: true
+ingress:
+  enabled: true
+  hostname: ${keycloak_hostname}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+
+  tls: true
+  extraHosts:
+    - name: ${keycloak_admin_hostname}
+      host: ${keycloak_admin_hostname}
+  extraTls:
+    - hosts:
+        - ${keycloak_admin_hostname}
+      secretName: tls-secret
+
+service:
+  type: ClusterIP
+
+production: true
+proxy: edge
+httpRelativePath: "/auth/"
+
+externalDatabase:
+  host: "postgresql.postgresql.svc.cluster.local"
+  port: 5432
+  user: usr_keycloak
+  database: keycloak_db
+  password: "${keycloak_db_password}"
