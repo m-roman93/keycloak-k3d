@@ -30,6 +30,15 @@ resource "null_resource" "keycloak-certificate" {
 }
 
 
+resource "kubectl_manifest" "keycloak-realm" {
+  
+  yaml_body = file("./templates/keycloak/realm.yml")
+
+  depends_on = [
+    kubectl_manifest.keycloak_namespace
+  ]
+}
+
 resource "helm_release" "keycloak" {
   name             = "keycloak"
   chart            = "keycloak"
@@ -49,6 +58,6 @@ resource "helm_release" "keycloak" {
   ]
 
   depends_on = [
-    null_resource.keycloak-certificate
+    kubectl_manifest.keycloak-realm
   ]
 }
